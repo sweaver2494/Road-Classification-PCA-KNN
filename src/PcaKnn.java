@@ -1,10 +1,22 @@
 /*
+ * Perform KNN using k = K_VALUE on original data to find error benchmark
+ * 
+ * Feature Test:
+ * N=total number of features
+ * Perform KNN to find error again using 1 to N-1 features, in order of variance. Feature 1 has the most variance, feature N has the least.
+ * Start with all features, the N-1 features, then N-2 features, until only feature 1 is left.
+ * 
+ * Component Test:
+ * N=total number of features
+ * Perform PCA using 1 to N principal components, in order of variance, each time performing KNN again to get error.
  *
  * @author Scott Weaver
  */
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -18,6 +30,7 @@ public class PcaKnn {
 	private static String TRAINING_FILE_PATH = "Data/TrainingData/training_data.csv";
     //Must include. This is the file you want to test against feature files
     private static String TEST_FILE_PATH = "Data/TestData/test_data.csv";
+    private static String RESULTS_FILE_PATH = "Data/results.csv";
     //Knn will be performed using k = K_VALUE
     private static int K_VALUE = 3;
     
@@ -33,6 +46,8 @@ public class PcaKnn {
 		//featureList is a list of features in ascending order of variance
 		ArrayList<String> featuresOrderedByVariance = new ArrayList<>();
 		ArrayList<String> features = new ArrayList<>();
+		ArrayList<String> resultsFeature = new ArrayList<>();
+		ArrayList<String> resultsComponent = new ArrayList<>();
 		
 		if ((new File(TEST_FILE_PATH)).isFile() && (new File(TRAINING_FILE_PATH)).isFile() && (new File(FEATURE_LIST_PATH)).isFile()) {
 			String trainingColumnHeaders = readFeatureFile(TRAINING_FILE_PATH, trainingData, trainingClassification);
@@ -43,9 +58,11 @@ public class PcaKnn {
 				Collections.reverse(featuresOrderedByVariance);
 				features = getColumnHeaders(testColumnHeaders);
 				
-				performPrincipalFeatureTest(trainingData, trainingClassification, testData, testClassification, features, featuresOrderedByVariance);
+				performPrincipalFeatureTest(trainingData, trainingClassification, testData, testClassification, features, featuresOrderedByVariance, resultsFeature);
 				
-				performPrincipalComponentTest(trainingData, trainingClassification, testData, testClassification, features);
+				performPrincipalComponentTest(trainingData, trainingClassification, testData, testClassification, features, resultsComponent);
+				
+				writeResultsFile(RESULTS_FILE_PATH, resultsFeature, resultsComponent);
 			} else {
 				System.err.println("Features inconsistent between Test File and Training File (mismatching headers).");
 			}
@@ -54,23 +71,7 @@ public class PcaKnn {
 		}
 	}
 	
-	/*
-	 * Perform KNN using k = K_MAX on original data to find error benchmark
-	 * 
-	 * Test One:
-	 * N=total number of features
-	 * Perform KNN to find error again using 1 to N-1 features, in order of variance. Feature 1 has the most variance, feature N has the least.
-	 * Start with all features, the N-1 features, then N-2 features, until only feature 1 is left.
-	 * 
-	 * 
-	 * Test Two:
-	 * N=total number of features
-	 * Perform PCA using 1 to N principal components, in order of variance, each time performing KNN again to get error.
-	 * 
-	 * 
-	 */
-	
-	private static void performPrincipalFeatureTest(ArrayList<double[]> trainingData, ArrayList<String> trainingClassification, ArrayList<double[]> testData, ArrayList<String> testClassification, ArrayList<String> features, ArrayList<String> featuresOrderedByVariance) {
+	private static void performPrincipalFeatureTest(ArrayList<double[]> trainingData, ArrayList<String> trainingClassification, ArrayList<double[]> testData, ArrayList<String> testClassification, ArrayList<String> features, ArrayList<String> featuresOrderedByVariance, ArrayList<String> results) {
 		int numTestData = testData.size();
 		int numTrainingData = trainingData.size();
 		int numFeatures = featuresOrderedByVariance.size();
@@ -112,7 +113,7 @@ public class PcaKnn {
 			double acc = ((double) count) / numTestData;
 			System.out.println(numRemoved + " / " + numFeatures + " removed:\t" + count + "/" + numTestData + " = " + acc);
 			System.out.println();
-			
+			results.add(String.valueOf(acc));
 			
 			//REMOVE FEATURE AT INDEX featureToRemove
 			int indexToRemove = 0;
@@ -129,7 +130,7 @@ public class PcaKnn {
 		}
 	}
 	
-	private static void performPrincipalComponentTest(ArrayList<double[]> trainingData, ArrayList<String> trainingClassification, ArrayList<double[]> testData, ArrayList<String> testClassification, ArrayList<String> features) {
+	private static void performPrincipalComponentTest(ArrayList<double[]> trainingData, ArrayList<String> trainingClassification, ArrayList<double[]> testData, ArrayList<String> testClassification, ArrayList<String> features, ArrayList<String> results) {
 		int numFeatures = features.size();
 		int numTestData = testData.size();
 		double dataAverage[] = new double[numFeatures];
@@ -174,6 +175,7 @@ public class PcaKnn {
 			double acc = ((double) count) / numTestData;
 			System.out.println(numRemoved + " / " + numFeatures + " removed:\t" + count + "/" + numTestData + " = " + acc);
 			System.out.println();
+			results.add(String.valueOf(acc));
 			
 			numRemoved++;
 			
@@ -315,6 +317,23 @@ public class PcaKnn {
         } catch(IOException e) {
         	System.err.println("Cannot read feature list file.");
         }
+	}
+	
+	private static void writeResultsFile(String filePath, ArrayList<String> resultsFeature, ArrayList<String> resultsComponent) {
+		
+		try {
+			BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(filePath, true));
+			
+			bufferedWriter.write("Num Removed,Features,Components");
+			bufferedWriter.newLine();
+			for (int i = 0; i < resultsFeature.size(); i++) {
+				bufferedWriter.write(i + "," + resultsFeature.get(i) + "," + resultsComponent.get(i));
+				bufferedWriter.newLine();
+			}
+			bufferedWriter.close();
+		} catch (IOException e) {
+			System.err.println("Cannot write results file. " + e.getMessage());
+		}
 	}
 
 }
