@@ -32,7 +32,7 @@ public class PcaKnn {
     private static String TEST_FILE_PATH = "Data/TestData/test_data.csv";
     private static String RESULTS_FILE_PATH = "Data/results.csv";
     //Knn will be performed using k = K_VALUE
-    private static int K_VALUE = 3;
+    private static int K_VALUE = 1;
     
 	public static void main(String[] args) {
 		
